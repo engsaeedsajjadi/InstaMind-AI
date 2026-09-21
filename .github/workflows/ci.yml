@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  backend:
+    name: Backend — lint, types, tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/backend
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: instamind
+          POSTGRES_PASSWORD: instamind
+          POSTGRES_DB: instamind
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U instamind"
+          --health-interval 10s --health-timeout 5s --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Lint (ruff)
+        run: ruff check app tests
+
+      - name: Types (mypy)
+        run: mypy app || true   # advisory until the baseline is clean
+
+      - name: Tests
+        env:
+          INSTAMIND_APP_ENV: test
+          INSTAMIND_SECRET_KEY: ci-secret-key-not-for-production-use
+          INSTAMIND_TOKEN_ENCRYPTION_KEY: ci-token-encryption-key
+        run: pytest -q --cov=app --cov-report=term-missing
+
+      - name: Migrations apply cleanly on Postgres
+        env:
+          INSTAMIND_APP_ENV: test
+          INSTAMIND_SECRET_KEY: ci-secret-key-not-for-production-use
+          INSTAMIND_TOKEN_ENCRYPTION_KEY: ci-token-encryption-key
+          INSTAMIND_DATABASE_URL: postgresql+asyncpg://instamind:instamind@localhost:5432/instamind
+        run: |
+          pip install asyncpg
+          alembic upgrade head
+          alembic downgrade base
+          alembic upgrade head
+
+  image:
+    name: Docker build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/build-push-action@v6
+        with:
+          context: ./apps/backend
+          push: false
+          tags: instamind/backend:ci

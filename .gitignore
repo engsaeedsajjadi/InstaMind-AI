@@ -1,0 +1,51 @@
+# ------------------------------------------------------------------ secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+secrets/
+
+# ------------------------------------------------------------------- python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# --------------------------------------------------------------------- node
+node_modules/
+.next/
+out/
+.turbo/
+*.tsbuildinfo
+
+# ------------------------------------------------------------------ runtime
+storage/
+*.log
+logs/
+celerybeat-schedule*
+*.sqlite3
+*.db
+
+# -------------------------------------------------------------------- infra
+.terraform/
+*.tfstate*
+docker-compose.override.yml
+
+# --------------------------------------------------------------------- misc
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
