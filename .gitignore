@@ -31,7 +31,8 @@ out/
 *.tsbuildinfo
 
 # ------------------------------------------------------------------ runtime
-storage/
+# Only the top-level runtime uploads dir — NOT apps/backend/app/modules/storage/
+/storage/
 *.log
 logs/
 celerybeat-schedule*

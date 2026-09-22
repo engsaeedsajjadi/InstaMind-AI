@@ -133,6 +133,17 @@ def create_app() -> FastAPI:
     # Webhooks are mounted under the version prefix but are unauthenticated by
     # design — Meta signs them instead.
     app.include_router(webhooks.router, prefix=prefix)
+
+    # In local-storage mode (dev/test only) the app serves the uploads itself,
+    # matching PUBLIC_MEDIA_BASE_URL. Production uses S3/MinIO presigned URLs.
+    if settings.STORAGE_BACKEND == "local":
+        from pathlib import Path
+
+        from fastapi.staticfiles import StaticFiles
+
+        media_root = Path(settings.LOCAL_STORAGE_ROOT)
+        media_root.mkdir(parents=True, exist_ok=True)
+        app.mount("/media", StaticFiles(directory=media_root), name="media")
     return app
 
 
