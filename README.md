@@ -20,7 +20,7 @@ exclusively on Meta's official Instagram Platform APIs.
 | **Storage** | S3-compatible (MinIO in dev) |
 | **AI** | OpenAI behind a provider interface, with per-workspace cost metering |
 | **Instagram** | Official Meta APIs only — both the Instagram Login and Facebook Login paths |
-| **Frontend** | Next.js + TypeScript + Tailwind (RTL/fa-IR first) — scaffolded, see roadmap |
+| **Frontend** | Next.js + TypeScript + Tailwind (RTL/fa-IR first) — landing, auth, dashboard, Instagram connect |
 
 ## Hard rules this codebase follows
 
@@ -109,7 +109,7 @@ instamind-ai/
 │   │   └── worker/        Celery app and tasks
 │   ├── migrations/        Alembic
 │   └── tests/             167 tests
-├── apps/frontend/         Next.js (scaffolded — see roadmap)
+├── apps/frontend/         Next.js — landing, auth, dashboard, IG connect (see apps/frontend/README.md)
 ├── infra/                 nginx, monitoring
 ├── docs/                  the documents above
 └── docker-compose.yml

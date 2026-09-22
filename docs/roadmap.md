@@ -86,7 +86,13 @@ is no service or endpoint yet. **Not started** means nothing but a plan.
 
 ## M6 — Frontend
 
-The Next.js app is scaffolded but not built out. Planned:
+The Next.js app (`apps/frontend`) is scaffolded and partially real:
+RTL/fa-IR shell with dark/light, landing, login/register, dashboard (real
+counts + setup checklist), the Instagram connect box for both official OAuth
+paths plus the `/settings/instagram` result page. `docker compose up --build`
+serves the whole stack through nginx.
+
+Still planned:
 
 * RTL-first layout, fa-IR + en-US, dark/light, WCAG 2.2 AA.
 * Landing, auth, dashboard, workspaces, Instagram accounts, Content Studio,
