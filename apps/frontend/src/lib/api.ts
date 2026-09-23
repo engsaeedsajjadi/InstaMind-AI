@@ -232,3 +232,61 @@ export async function fetchContents(): Promise<ContentRead[]> {
 export async function fetchPublishingJobs(): Promise<PublishingJobRead[]> {
   return request<PublishingJobRead[]>("/publishing/jobs?limit=200");
 }
+
+
+export interface ConversationRow {
+  id: string; participant_username?: string | null; participant_name?: string | null;
+  status: string; is_read: boolean; last_message_at?: string | null;
+  needs_human: boolean; customer_id?: string | null;
+}
+export interface MessageRow {
+  id: string; conversation_id: string; direction: string; text: string;
+  sender_kind: string; sent_at?: string | null; status: string;
+}
+export interface CommentRow {
+  id: string; external_comment_id: string; media_id?: string | null;
+  from_username?: string | null; text: string; status: string; is_hidden: boolean;
+  needs_human: boolean; posted_at?: string | null;
+}
+export interface CustomerRow {
+  id: string; username?: string | null; display_name?: string | null;
+  email?: string | null; lead_score: number; stage: string; tags: string[];
+}
+export interface AnalyticsRow {
+  id: string; metric: string; period: string; since: string; until: string;
+  value?: number | null; is_available: boolean;
+}
+
+export async function fetchConversations(): Promise<ConversationRow[]> {
+  return request<ConversationRow[]>("/inbox/conversations?limit=200");
+}
+export async function fetchMessages(conversationId: string): Promise<MessageRow[]> {
+  return request<MessageRow[]>(`/inbox/conversations/${conversationId}/messages?limit=500`);
+}
+export async function sendMessage(conversationId: string, text: string, humanAgent = false): Promise<MessageRow> {
+  return request<MessageRow>(`/inbox/conversations/${conversationId}/send`, {
+    method: "POST", body: JSON.stringify({ text, human_agent: humanAgent }),
+  });
+}
+export async function fetchComments(): Promise<CommentRow[]> {
+  return request<CommentRow[]>("/comments?limit=200");
+}
+export async function replyComment(commentId: string, text: string, privateReply = false): Promise<CommentRow> {
+  return request<CommentRow>(`/comments/${commentId}/reply`, {
+    method: "POST", body: JSON.stringify({ text, private: privateReply }),
+  });
+}
+export async function hideComment(commentId: string): Promise<CommentRow> {
+  return request<CommentRow>(`/comments/${commentId}/hide`, { method: "POST" });
+}
+export async function fetchCustomers(): Promise<CustomerRow[]> {
+  return request<CustomerRow[]>("/crm/customers?limit=200");
+}
+export async function updateCustomer(customerId: string, patch: Record<string, unknown>): Promise<CustomerRow> {
+  return request<CustomerRow>(`/crm/customers/${customerId}`, {
+    method: "PATCH", body: JSON.stringify(patch),
+  });
+}
+export async function fetchAnalytics(): Promise<AnalyticsRow[]> {
+  return request<AnalyticsRow[]>("/analytics/snapshots?limit=500");
+}
