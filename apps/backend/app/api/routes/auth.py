@@ -32,6 +32,38 @@ from app.modules.identity.service import IdentityService
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
+ACCESS_COOKIE = "__Host-instamind_access"
+REFRESH_COOKIE = "__Host-instamind_refresh"
+
+def _cookie_name(access: bool) -> str:
+    if settings.is_prod:
+        return ACCESS_COOKIE if access else REFRESH_COOKIE
+    return "instamind_access" if access else "instamind_refresh"
+
+def _set_browser_cookies(response: Response, tokens) -> None:
+    secure = settings.is_prod
+    response.set_cookie(
+        key=_cookie_name(True), value=tokens.access_token, max_age=tokens.expires_in,
+        path="/", secure=secure, httponly=True, samesite=settings.AUTH_COOKIE_SAMESITE,
+    )
+    response.set_cookie(
+        key=_cookie_name(False), value=tokens.refresh_token,
+        max_age=settings.REFRESH_TOKEN_TTL_DAYS * 86400,
+        path="/api/v1/auth/browser", secure=secure, httponly=True,
+        samesite=settings.AUTH_COOKIE_SAMESITE,
+    )
+
+def _clear_browser_cookies(response: Response) -> None:
+    secure = settings.is_prod
+    response.delete_cookie(
+        key=_cookie_name(True), path="/", secure=secure, httponly=True,
+        samesite=settings.AUTH_COOKIE_SAMESITE,
+    )
+    response.delete_cookie(
+        key=_cookie_name(False), path="/api/v1/auth/browser", secure=secure,
+        httponly=True, samesite=settings.AUTH_COOKIE_SAMESITE,
+    )
+
 AuthedUser = Annotated[User, Depends(get_current_user)]
 AccessTokenClaims = Annotated[object, Depends(get_current_claims)]
 
@@ -60,6 +92,48 @@ async def register(payload: RegisterRequest, request: Request, session: DBSessio
     return UserRead.model_validate(user)
 
 
+
+
+@router.post("/browser/login", response_model=UserRead)
+async def browser_login(
+    payload: LoginRequest, request: Request, response: Response, session: DBSession
+) -> UserRead:
+    await _limit_auth(request, "browser-login")
+    identity = IdentityService(session)
+    result = await identity.authenticate(
+        email=payload.email,
+        password=payload.password,
+        ip_address=client_ip(request),
+        user_agent=request.headers.get("user-agent"),
+        device_label=payload.device_label or "web",
+    )
+    _set_browser_cookies(response, result.tokens)
+    return UserRead.model_validate(result.user)
+
+
+@router.post("/browser/refresh", response_model=TokenResponse)
+async def browser_refresh(request: Request, response: Response, session: DBSession) -> TokenResponse:
+    await _limit_auth(request, "browser-refresh")
+    refresh_token = request.cookies.get(_cookie_name(False))
+    if not refresh_token:
+        raise AuthenticationError("Browser session is missing a refresh cookie.")
+    identity = IdentityService(session)
+    tokens = await identity.rotate_refresh_token(refresh_token)
+    _set_browser_cookies(response, tokens)
+    return TokenResponse(
+        access_token="", refresh_token="", expires_in=tokens.expires_in, session_id=tokens.session_id
+    )
+
+
+@router.post("/browser/logout", status_code=status.HTTP_204_NO_CONTENT)
+async def browser_logout(
+    response: Response, claims: AccessTokenClaims, session: DBSession
+) -> Response:
+    identity = IdentityService(session)
+    if claims.session_id is not None:
+        await identity.revoke_session(claims.session_id, reason="browser_logout")
+    _clear_browser_cookies(response)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 @router.post("/login", response_model=TokenResponse)
 async def login(payload: LoginRequest, request: Request, session: DBSession) -> TokenResponse:
     await _limit_auth(request, "login")
