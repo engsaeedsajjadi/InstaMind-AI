@@ -133,7 +133,8 @@ async def browser_logout(
     if claims.session_id is not None:
         await identity.revoke_session(claims.session_id, reason="browser_logout")
     _clear_browser_cookies(response)
-    return Response(status_code=status.HTTP_204_NO_CONTENT)
+    response.status_code = status.HTTP_204_NO_CONTENT
+    return response
 @router.post("/login", response_model=TokenResponse)
 async def login(payload: LoginRequest, request: Request, session: DBSession) -> TokenResponse:
     await _limit_auth(request, "login")
