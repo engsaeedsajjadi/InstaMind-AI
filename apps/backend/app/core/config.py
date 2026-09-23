@@ -97,6 +97,8 @@ class Settings(BaseSettings):
     TOTP_ISSUER: str = "InstaMind AI"
     TOTP_DIGITS: int = 6
     TOTP_PERIOD: int = 30
+    # Browser auth uses HttpOnly cookies; API clients may continue using Bearer tokens.
+    AUTH_COOKIE_SAMESITE: Literal["strict", "lax"] = "strict"
 
     # ----------------------------------------------------------- rate limit
     RATE_LIMIT_ENABLED: bool = True
