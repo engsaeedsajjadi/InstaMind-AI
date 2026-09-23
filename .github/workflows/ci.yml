@@ -42,30 +42,8 @@ jobs:
         run: ruff check app/core
       - name: Lint — app/db
         run: ruff check app/db
-      - name: Lint — routes/ai.py
-        run: ruff check app/api/routes/ai.py
-      - name: Lint — routes/auth.py
-        run: ruff check app/api/routes/auth.py
-      - name: Lint — routes/billing.py
-        run: ruff check app/api/routes/billing.py
-      - name: Lint — routes/content.py
-        run: ruff check app/api/routes/content.py
-      - name: Lint — routes/health.py
-        run: ruff check app/api/routes/health.py
-      - name: Lint — routes/publishing.py
-        run: ruff check app/api/routes/publishing.py
-      - name: Lint — routes/social_accounts.py
-        run: ruff check app/api/routes/social_accounts.py
-      - name: Lint — routes/webhooks.py
-        run: ruff check app/api/routes/webhooks.py
-      - name: Lint — routes/workspaces.py
-        run: ruff check app/api/routes/workspaces.py
-      - name: Lint — routes/engagement.py
-        run: ruff check app/api/routes/engagement.py
-      - name: Lint — app/api/deps.py
-        run: ruff check app/api/deps.py
-      - name: Lint — app/api/schemas.py
-        run: ruff check app/api/schemas.py
+      - name: Lint — app/api
+        run: ruff check app/api
       - name: Lint — app/modules
         run: ruff check app/modules
       - name: Lint — app/providers
