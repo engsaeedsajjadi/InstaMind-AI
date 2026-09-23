@@ -42,8 +42,12 @@ jobs:
         run: ruff check app/core
       - name: Lint — app/db
         run: ruff check app/db
-      - name: Lint — app/api
-        run: ruff check app/api
+      - name: Lint — app/api/routes
+        run: ruff check app/api/routes
+      - name: Lint — app/api/deps.py
+        run: ruff check app/api/deps.py
+      - name: Lint — app/api/schemas.py
+        run: ruff check app/api/schemas.py
       - name: Lint — app/modules
         run: ruff check app/modules
       - name: Lint — app/providers
