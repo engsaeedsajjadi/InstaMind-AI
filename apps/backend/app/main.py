@@ -75,7 +75,7 @@ def create_app() -> FastAPI:
             ("instagram", "Official Meta connection flow and account management"),
             ("content", "Content studio, media library, approvals, calendar"),
             ("publishing", "Publish queue, retries, attempt history"),
-            ("ai", "Caption and content-plan generation with cost metering"),
+            ("ai", "Caption and content-plan generation with cost metering"),\n            ("engagement", "Instagram inbox, comments, CRM and engagement"),\n            ("analytics", "Official Instagram Insights snapshots"),
             ("billing", "Plans, subscription, usage"),
             ("webhooks", "Meta webhook verification and ingestion"),
             ("system", "Health, readiness, metrics"),
