@@ -66,7 +66,18 @@ jobs:
           INSTAMIND_APP_ENV: test
           INSTAMIND_SECRET_KEY: ci-secret-key-not-for-production-use
           INSTAMIND_TOKEN_ENCRYPTION_KEY: ci-token-encryption-key
-        run: pytest -q --cov=app --cov-report=term-missing
+        run: |
+          set +e
+          output="$(pytest -q --cov=app --cov-report=term-missing 2>&1)"
+          code=$?
+          echo "$output"
+          if [ "$code" -ne 0 ]; then
+            number="$(gh pr list --head "$GITHUB_REF_NAME" --json number --jq '.[0].number')"
+            if [ -n "$number" ]; then
+              gh pr comment "$number" --body "Pytest failed: $output"
+            fi
+          fi
+          exit "$code"
 
       - name: Migrations apply cleanly on Postgres
         env:
