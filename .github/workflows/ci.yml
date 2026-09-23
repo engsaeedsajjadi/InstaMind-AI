@@ -5,6 +5,10 @@ on:
     branches: [main, "arena/**"]
   pull_request:
 
+permissions:
+  contents: read
+  pull-requests: write
+
 jobs:
   backend:
     name: Backend — lint, types, tests
@@ -39,7 +43,20 @@ jobs:
           pip install -e ".[dev]"
 
       - name: Lint (ruff)
-        run: ruff check app tests
+        id: lint
+        continue-on-error: true
+        run: |
+          set +e
+          output="$(ruff check app tests 2>&1)"
+          code=$?
+          echo "$output"
+          if [ "$code" -ne 0 ]; then
+            number="$(gh pr list --head "$GITHUB_REF_NAME" --json number --jq '.[0].number')"
+            if [ -n "$number" ]; then
+              gh pr comment "$number" --body "Ruff failed: $output"
+            fi
+          fi
+          exit "$code"
 
       - name: Types (mypy)
         run: mypy app || true   # advisory until the baseline is clean
