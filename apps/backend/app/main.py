@@ -19,6 +19,7 @@ from app.api.routes import (
     auth,
     billing,
     content,
+    engagement,
     health,
     publishing,
     social_accounts,
@@ -75,7 +76,9 @@ def create_app() -> FastAPI:
             ("instagram", "Official Meta connection flow and account management"),
             ("content", "Content studio, media library, approvals, calendar"),
             ("publishing", "Publish queue, retries, attempt history"),
-            ("ai", "Caption and content-plan generation with cost metering"),\n            ("engagement", "Instagram inbox, comments, CRM and engagement"),\n            ("analytics", "Official Instagram Insights snapshots"),
+            ("ai", "Caption and content-plan generation with cost metering"),
+            ("engagement", "Instagram inbox, comments, CRM and engagement"),
+            ("analytics", "Official Instagram Insights snapshots"),
             ("billing", "Plans, subscription, usage"),
             ("webhooks", "Meta webhook verification and ingestion"),
             ("system", "Health, readiness, metrics"),
@@ -127,6 +130,7 @@ def create_app() -> FastAPI:
     app.include_router(workspaces.router, prefix=prefix)
     app.include_router(social_accounts.router, prefix=prefix)
     app.include_router(content.router, prefix=prefix)
+    app.include_router(engagement.router, prefix=prefix)
     app.include_router(publishing.router, prefix=prefix)
     app.include_router(ai.router, prefix=prefix)
     app.include_router(billing.router, prefix=prefix)
