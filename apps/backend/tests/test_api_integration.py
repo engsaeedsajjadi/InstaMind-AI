@@ -93,6 +93,31 @@ async def test_protected_route_without_a_token(client):
     assert response.headers.get("WWW-Authenticate") == "Bearer"
 
 
+
+
+@pytest.mark.asyncio
+async def test_browser_auth_uses_httponly_cookies(client):
+    await register_and_login(client, "browser@example.com")
+    response = await client.post(
+        "/api/v1/auth/browser/login",
+        json={"email": "browser@example.com", "password": PASSWORD, "device_label": "web"},
+    )
+    assert response.status_code == 200
+    cookies = response.headers.get_list("set-cookie")
+    assert any("instamind_access=" in value and "HttpOnly" in value for value in cookies)
+    assert any("instamind_refresh=" in value and "HttpOnly" in value for value in cookies)
+
+    me = await client.get("/api/v1/auth/me")
+    assert me.status_code == 200
+    assert me.json()["email"] == "browser@example.com"
+
+    logout = await client.post("/api/v1/auth/browser/logout")
+    assert logout.status_code == 204
+
+    me_after_logout = await client.get("/api/v1/auth/me")
+    assert me_after_logout.status_code == 401
+
+
 @pytest.mark.asyncio
 async def test_me_returns_the_current_user(client):
     tokens = await register_and_login(client, "me@example.com")
