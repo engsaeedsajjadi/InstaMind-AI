@@ -6,11 +6,10 @@
  * Design:
  * - All requests are relative (`/api/v1/...`) and proxied server-side by
  *   Next rewrites — the browser never sees a backend address.
- * - Bearer token + active workspace id are attached automatically.
- * - On 401 the rotating refresh token is used once; if it fails, the user
- *   is signed out locally. A reissue inside the backend's rotation grace
- *   window returns an EMPTY refresh_token — we must not overwrite the
- *   stored replacement with it.
+ * - Browser sessions use HttpOnly cookies; only the active workspace id is
+ *   stored client-side.
+ * - On 401 the rotating refresh cookie is used once; if it fails, the user
+ *   is signed out locally.
  */
 
 import type {
@@ -19,7 +18,6 @@ import type {
   ProblemDetail,
   PublishingJobRead,
   SocialAccountRead,
-  TokenResponse,
   UserRead,
   WorkspaceRead,
 } from "./types";
@@ -95,9 +93,7 @@ async function tryRefresh(): Promise<boolean> {
     signOut();
     return false;
   }
-  const tokens = (await response.json()) as TokenResponse;
-  // Inside the rotation grace window the backend reissues ONLY an access
-  // token (empty string) — keep the replacement refresh token we already hold.
+  // Rotation happens entirely inside HttpOnly cookies.
   setAuth({ authenticated: true });
   return true;
 }
