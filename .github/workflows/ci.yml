@@ -5,11 +5,6 @@ on:
     branches: [main, "arena/**"]
   pull_request:
 
-permissions:
-  contents: write
-  pull-requests: write
-  issues: write
-
 jobs:
   backend:
     name: Backend — lint, types, tests
@@ -44,20 +39,7 @@ jobs:
           pip install -e ".[dev]"
 
       - name: Lint (ruff)
-        id: lint
-        continue-on-error: true
-        run: |
-          set +e
-          output="$(ruff check app tests 2>&1)"
-          code=$?
-          echo "$output"
-          if [ "$code" -ne 0 ]; then
-            number="$(gh pr list --head "$GITHUB_REF_NAME" --json number --jq '.[0].number')"
-            if [ -n "$number" ]; then
-              gh pr comment "$number" --body "Ruff failed: $output"
-            fi
-          fi
-          exit "$code"
+        run: ruff check app tests
 
       - name: Types (mypy)
         run: mypy app || true   # advisory until the baseline is clean
@@ -67,16 +49,7 @@ jobs:
           INSTAMIND_APP_ENV: test
           INSTAMIND_SECRET_KEY: ci-secret-key-not-for-production-use
           INSTAMIND_TOKEN_ENCRYPTION_KEY: ci-token-encryption-key
-        run: |
-          set +e
-          output="$(pytest -q --cov=app --cov-report=term-missing 2>&1)"
-          code=$?
-          echo "$output"
-          if [ "$code" -ne 0 ]; then
-            body=$(python -c 'import json,os,sys; print(json.dumps({"title":"CI diagnostic: pytest failure","body":"Temporary diagnostic for run "+os.environ["GITHUB_RUN_ID"]+"\\n\\n```text\\n"+sys.stdin.read()+"\\n```"}))' <<< "$output")
-            curl -fsSL -X POST -H "Authorization: Bearer $GITHUB_TOKEN" -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28" https://api.github.com/repos/$GITHUB_REPOSITORY/issues -d "$body"
-          fi
-          exit "$code"
+        run: pytest -q --cov=app --cov-report=term-missing
 
       - name: Migrations apply cleanly on Postgres
         env:
