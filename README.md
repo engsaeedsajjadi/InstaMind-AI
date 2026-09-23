@@ -4,7 +4,7 @@ Enterprise multi-tenant SaaS for AI-assisted Instagram management: content
 generation, scheduling, publishing, inbox, comments, CRM and analytics — built
 exclusively on Meta's official Instagram Platform APIs.
 
-> **Status: M1 (foundation) is implemented and tested.** See
+> **Status: Foundation + engagement API/UI pass are implemented; production hardening is in progress.** See
 > [Roadmap](docs/roadmap.md) for exactly what exists, what is stubbed, and what
 > is not started. Nothing in this repository fakes a capability.
 
@@ -20,7 +20,7 @@ exclusively on Meta's official Instagram Platform APIs.
 | **Storage** | S3-compatible (MinIO in dev) |
 | **AI** | OpenAI behind a provider interface, with per-workspace cost metering |
 | **Instagram** | Official Meta APIs only — both the Instagram Login and Facebook Login paths |
-| **Frontend** | Next.js + TypeScript + Tailwind (RTL/fa-IR first) — landing, auth, dashboard, Instagram connect |
+| **Frontend** | Next.js + TypeScript + Tailwind (RTL/fa-IR first) — landing, auth, dashboard, Instagram connect, inbox, comments, CRM and analytics views |
 
 ## Hard rules this codebase follows
 
