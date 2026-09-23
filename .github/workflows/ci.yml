@@ -58,12 +58,26 @@ jobs:
       - name: Types (mypy)
         run: mypy app || true   # advisory until the baseline is clean
 
-      - name: Tests
-        env:
-          INSTAMIND_APP_ENV: test
-          INSTAMIND_SECRET_KEY: ci-secret-key-not-for-production-use
-          INSTAMIND_TOKEN_ENCRYPTION_KEY: ci-token-encryption-key
-        run: pytest -q --cov=app --cov-report=term-missing
+      - name: Pytest — test_ai_service.py
+        run: pytest -q tests/test_ai_service.py
+      - name: Pytest — test_api_integration.py
+        run: pytest -q tests/test_api_integration.py
+      - name: Pytest — test_instagram_connection.py
+        run: pytest -q tests/test_instagram_connection.py
+      - name: Pytest — test_jwt_and_sessions.py
+        run: pytest -q tests/test_jwt_and_sessions.py
+      - name: Pytest — test_media_rules.py
+        run: pytest -q tests/test_media_rules.py
+      - name: Pytest — test_publishing_engine.py
+        run: pytest -q tests/test_publishing_engine.py
+      - name: Pytest — test_security.py
+        run: pytest -q tests/test_security.py
+      - name: Pytest — test_tenant_isolation.py
+        run: pytest -q tests/test_tenant_isolation.py
+      - name: Pytest — test_webhooks.py
+        run: pytest -q tests/test_webhooks.py
+      - name: Pytest — test_engagement_routes.py
+        run: pytest -q tests/test_engagement_routes.py
 
       - name: Migrations apply cleanly on Postgres
         env:
