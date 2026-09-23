@@ -32,13 +32,16 @@ from app.modules.identity.service import IdentityService
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
+
 ACCESS_COOKIE = "__Host-instamind_access"
 REFRESH_COOKIE = "__Host-instamind_refresh"
+
 
 def _cookie_name(access: bool) -> str:
     if settings.is_prod:
         return ACCESS_COOKIE if access else REFRESH_COOKIE
     return "instamind_access" if access else "instamind_refresh"
+
 
 def _set_browser_cookies(response: Response, tokens) -> None:
     secure = settings.is_prod
@@ -53,6 +56,7 @@ def _set_browser_cookies(response: Response, tokens) -> None:
         samesite=settings.AUTH_COOKIE_SAMESITE,
     )
 
+
 def _clear_browser_cookies(response: Response) -> None:
     secure = settings.is_prod
     response.delete_cookie(
@@ -63,6 +67,7 @@ def _clear_browser_cookies(response: Response) -> None:
         key=_cookie_name(False), path="/api/v1/auth/browser", secure=secure,
         httponly=True, samesite=settings.AUTH_COOKIE_SAMESITE,
     )
+
 
 AuthedUser = Annotated[User, Depends(get_current_user)]
 AccessTokenClaims = Annotated[object, Depends(get_current_claims)]
@@ -90,8 +95,6 @@ async def register(payload: RegisterRequest, request: Request, session: DBSessio
         timezone=payload.timezone,
     )
     return UserRead.model_validate(user)
-
-
 
 
 @router.post("/browser/login", response_model=UserRead)
@@ -135,6 +138,8 @@ async def browser_logout(
     _clear_browser_cookies(response)
     response.status_code = status.HTTP_204_NO_CONTENT
     return response
+
+
 @router.post("/login", response_model=TokenResponse)
 async def login(payload: LoginRequest, request: Request, session: DBSession) -> TokenResponse:
     await _limit_auth(request, "login")
