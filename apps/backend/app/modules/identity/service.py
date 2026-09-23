@@ -234,6 +234,9 @@ class IdentityService:
                 "auth.login_failed", detail={"reason": "unknown_email", "email": normalize_email(email)},
                 ip_address=ip_address,
             )
+            # Security writes must outlive the error response: the request-scoped
+            # session dependency rolls this transaction back when we raise.
+            await self.session.commit()
             raise AuthenticationError("Invalid email or password.")
 
         if not user.is_active:
@@ -244,6 +247,7 @@ class IdentityService:
                 detail={"reason": "locked", "locked_until": user.locked_until.isoformat()},
                 ip_address=ip_address,
             )
+            await self.session.commit()  # see note in the unknown-email branch above
             raise AuthenticationError("Too many failed attempts. Try again later.")
 
         if not await self.verify_password_for_user(user, password):
@@ -279,7 +283,10 @@ class IdentityService:
         await self.record_security_event(
             "auth.login_failed", user_id=user.id, ip_address=ip_address, detail=detail
         )
-        await self.session.flush()
+        # Commit the failure counter/lockout now: authenticate() raises right
+        # after this, and the request-scoped dependency would otherwise roll the
+        # write back — silently disabling brute-force lockout over HTTP.
+        await self.session.commit()
 
     # ------------------------------------------------------- token rotation
     async def rotate_refresh_token(self, refresh_jwt: str) -> AuthTokens:
@@ -295,6 +302,7 @@ class IdentityService:
                 "auth.refresh_unknown_token", user_id=uuid.UUID(payload.sub),
                 detail={"family": payload.family},
             )
+            await self.session.commit()  # persist the event before the error response
             raise AuthenticationError("Invalid refresh token.")
 
         user = await self.get_user(row.user_id)
@@ -329,6 +337,10 @@ class IdentityService:
                 detail={"family": row.family_id, "session_id": str(session_row.id)},
             )
             logger.warning("refresh_token_reuse", family=row.family_id, user_id=str(user.id))
+            # Critical: persist the family revocation *before* raising. The
+            # request-scoped session rolls back on error, and the whole point of
+            # reuse detection is that the stolen tokens stop working.
+            await self.session.commit()
             raise AuthenticationError("Refresh token reuse detected. All sessions were signed out.")
 
         now = datetime.now(UTC)

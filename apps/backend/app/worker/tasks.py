@@ -187,6 +187,7 @@ def process_webhook_event(event_id: str) -> dict:  # noqa: ANN001
     """Turn a stored webhook event into domain changes (inbox, comments)."""
 
     async def _work(session) -> dict:
+        from app.modules.inbox.models import Comment, Conversation, Message
         from app.modules.instagram.models import MetaWebhookEvent
 
         event = await session.get(MetaWebhookEvent, uuid.UUID(event_id))
@@ -198,13 +199,115 @@ def process_webhook_event(event_id: str) -> dict:  # noqa: ANN001
         event.attempts += 1
         await session.flush()
         try:
-            # Domain handlers (inbox upsert, comment upsert) are added in the
-            # Inbox/Comments milestone. Marking as processed here keeps the
-            # contract: an event is handled exactly once.
+            item = event.payload or {}
+            change = item.get("change") or {}
+            value = change.get("value") or {}
+            messaging = item.get("messaging") or {}
+            created = 0
+
+            if event.change_type == "comments":
+                comment_id = str(value.get("id") or "")
+                if comment_id and event.social_account_id:
+                    exists = (await session.execute(
+                        select(Comment.id).where(
+                            Comment.workspace_id == event.workspace_id,
+                            Comment.social_account_id == event.social_account_id,
+                            Comment.external_comment_id == comment_id,
+                        )
+                    )).scalar_one_or_none()
+                    if exists is None:
+                        sender = value.get("from") or {}
+                        media = value.get("media") or {}
+                        session.add(Comment(
+                            workspace_id=event.workspace_id,
+                            social_account_id=event.social_account_id,
+                            media_id=str(media.get("id") or value.get("media_id") or "") or None,
+                            external_comment_id=comment_id,
+                            parent_comment_id=str(value.get("parent_id") or "") or None,
+                            from_username=sender.get("username"),
+                            from_ig_id=str(sender.get("id") or "") or None,
+                            text=str(value.get("text") or ""),
+                            like_count=int(value.get("like_count") or 0),
+                            status="NEW",
+                            posted_at=datetime.fromtimestamp(
+                                int(value["timestamp"]), UTC
+                            ) if value.get("timestamp") else datetime.now(UTC),
+                            created_by=uuid.UUID(int=0),
+                        ))
+                        created = 1
+
+            elif event.change_type in {"messages", "message", "messaging_postbacks", "message_reactions"}:
+                message = messaging.get("message") if isinstance(messaging, dict) else None
+                message = message or {}
+                mid = str(message.get("mid") or "")
+                sender = messaging.get("sender") or {}
+                recipient = messaging.get("recipient") or {}
+                participant_id = str(sender.get("id") or recipient.get("id") or "") or None
+                if mid and event.social_account_id and participant_id:
+                    conversation_ext = str(
+                        messaging.get("thread_id")
+                        or messaging.get("conversation_id")
+                        or participant_id
+                    )
+                    conversation = (await session.execute(
+                        select(Conversation).where(
+                            Conversation.workspace_id == event.workspace_id,
+                            Conversation.social_account_id == event.social_account_id,
+                            Conversation.external_conversation_id == conversation_ext,
+                        )
+                    )).scalar_one_or_none()
+                    now = datetime.now(UTC)
+                    if conversation is None:
+                        conversation = Conversation(
+                            workspace_id=event.workspace_id,
+                            social_account_id=event.social_account_id,
+                            external_conversation_id=conversation_ext,
+                            participant_ig_id=participant_id,
+                            participant_username=sender.get("username"),
+                            participant_name=sender.get("name"),
+                            status="OPEN",
+                            labels=[],
+                            created_by=uuid.UUID(int=0),
+                        )
+                        session.add(conversation)
+                        await session.flush()
+                    exists = (await session.execute(
+                        select(Message.id).where(
+                            Message.workspace_id == event.workspace_id,
+                            Message.conversation_id == conversation.id,
+                            Message.external_message_id == mid,
+                        )
+                    )).scalar_one_or_none()
+                    if exists is None:
+                        inbound = participant_id != str(
+                            (messaging.get("recipient") or {}).get("id") or ""
+                        )
+                        session.add(Message(
+                            workspace_id=event.workspace_id,
+                            conversation_id=conversation.id,
+                            external_message_id=mid,
+                            direction="INBOUND" if inbound else "OUTBOUND",
+                            sender_kind="PARTICIPANT" if inbound else "HUMAN",
+                            message_type="TEXT",
+                            text=str(message.get("text") or ""),
+                            attachments=(message.get("attachments") or {}).get("data", [])
+                            if isinstance(message.get("attachments"), dict) else [],
+                            status="SENT",
+                            sent_at=datetime.fromtimestamp(
+                                int(messaging["timestamp"]) / 1000, UTC
+                            ) if messaging.get("timestamp") else now,
+                            created_by=uuid.UUID(int=0),
+                        ))
+                        conversation.last_message_at = now
+                        if inbound:
+                            conversation.last_inbound_at = now
+                            conversation.messaging_window_expires_at = now + timedelta(hours=24)
+                        created = 1
+
             event.processing_status = "PROCESSED"
             event.processed_at = datetime.now(UTC)
             await session.flush()
-            return {"status": "processed", "change_type": event.change_type}
+            return {"status": "processed", "change_type": event.change_type, "created": created}
         except Exception as exc:  # noqa: BLE001
             event.processing_status = "FAILED"
             event.last_error = str(exc)[:1000]

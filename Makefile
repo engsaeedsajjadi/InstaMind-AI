@@ -99,6 +99,10 @@ format: ## Auto-format with ruff
 openapi: ## Dump the OpenAPI spec to docs/openapi.json
 	cd $(BACKEND) && $(PYTHON) -c "import json;from app.main import app;print(json.dumps(app.openapi(),indent=2))" > ../../docs/openapi.json
 
+.PHONY: production-gate
+production-gate: ## Validate production environment configuration
+	$(PYTHON) scripts/production_gate.py
+
 .PHONY: check
 check: lint test ## Lint + test (what CI runs)
 

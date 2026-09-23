@@ -19,6 +19,7 @@ from app.api.routes import (
     auth,
     billing,
     content,
+    engagement,
     health,
     publishing,
     social_accounts,
@@ -76,6 +77,8 @@ def create_app() -> FastAPI:
             ("content", "Content studio, media library, approvals, calendar"),
             ("publishing", "Publish queue, retries, attempt history"),
             ("ai", "Caption and content-plan generation with cost metering"),
+            ("engagement", "Instagram inbox, comments, CRM and engagement"),
+            ("analytics", "Official Instagram Insights snapshots"),
             ("billing", "Plans, subscription, usage"),
             ("webhooks", "Meta webhook verification and ingestion"),
             ("system", "Health, readiness, metrics"),
@@ -127,12 +130,24 @@ def create_app() -> FastAPI:
     app.include_router(workspaces.router, prefix=prefix)
     app.include_router(social_accounts.router, prefix=prefix)
     app.include_router(content.router, prefix=prefix)
+    app.include_router(engagement.router, prefix=prefix)
     app.include_router(publishing.router, prefix=prefix)
     app.include_router(ai.router, prefix=prefix)
     app.include_router(billing.router, prefix=prefix)
     # Webhooks are mounted under the version prefix but are unauthenticated by
     # design — Meta signs them instead.
     app.include_router(webhooks.router, prefix=prefix)
+
+    # In local-storage mode (dev/test only) the app serves the uploads itself,
+    # matching PUBLIC_MEDIA_BASE_URL. Production uses S3/MinIO presigned URLs.
+    if settings.STORAGE_BACKEND == "local":
+        from pathlib import Path
+
+        from fastapi.staticfiles import StaticFiles
+
+        media_root = Path(settings.LOCAL_STORAGE_ROOT)
+        media_root.mkdir(parents=True, exist_ok=True)
+        app.mount("/media", StaticFiles(directory=media_root), name="media")
     return app
 
 

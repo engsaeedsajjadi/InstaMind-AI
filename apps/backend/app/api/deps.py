@@ -51,12 +51,18 @@ def client_ip(request: Request) -> str | None:
 
 
 async def get_current_claims(
+    request: Request,
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer_scheme)],
 ) -> AccessTokenClaims:
-    if credentials is None or not credentials.credentials:
+    # Prefer an explicit Bearer token for API/CLI clients. Browser sessions use
+    # an HttpOnly cookie so JWT material is never exposed to JavaScript.
+    token = credentials.credentials if credentials and credentials.credentials else request.cookies.get(
+        "__Host-instamind_access" if settings.is_prod else "instamind_access"
+    )
+    if not token:
         raise AuthenticationError()
     try:
-        payload = decode_token(credentials.credentials, expected_type="access")
+        payload = decode_token(token, expected_type="access")
     except TokenError as exc:
         raise AuthenticationError(f"Authentication failed: {exc}") from exc
     return claims_from_payload(payload)

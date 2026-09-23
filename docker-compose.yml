@@ -24,19 +24,19 @@ x-backend-env: &backend-env
   # Secrets come from .env — never hard-coded here.
   INSTAMIND_SECRET_KEY: ${INSTAMIND_SECRET_KEY}
   INSTAMIND_TOKEN_ENCRYPTION_KEY: ${INSTAMIND_TOKEN_ENCRYPTION_KEY}
-  INSTAMIND_META_APP_ID: ${META_APP_ID:-}
-  INSTAMIND_META_APP_SECRET: ${META_APP_SECRET:-}
-  INSTAMIND_META_INSTAGRAM_CLIENT_ID: ${META_IG_CLIENT_ID:-}
-  INSTAMIND_META_INSTAGRAM_CLIENT_SECRET: ${META_IG_CLIENT_SECRET:-}
-  INSTAMIND_META_FACEBOOK_CLIENT_ID: ${META_FB_CLIENT_ID:-}
-  INSTAMIND_META_FACEBOOK_CLIENT_SECRET: ${META_FB_CLIENT_SECRET:-}
-  INSTAMIND_META_WEBHOOK_VERIFY_TOKEN: ${META_WEBHOOK_VERIFY_TOKEN:-}
+  INSTAMIND_META_APP_ID: ${INSTAMIND_META_APP_ID:-}
+  INSTAMIND_META_APP_SECRET: ${INSTAMIND_META_APP_SECRET:-}
+  INSTAMIND_META_INSTAGRAM_CLIENT_ID: ${INSTAMIND_META_INSTAGRAM_CLIENT_ID:-}
+  INSTAMIND_META_INSTAGRAM_CLIENT_SECRET: ${INSTAMIND_META_INSTAGRAM_CLIENT_SECRET:-}
+  INSTAMIND_META_FACEBOOK_CLIENT_ID: ${INSTAMIND_META_FACEBOOK_CLIENT_ID:-}
+  INSTAMIND_META_FACEBOOK_CLIENT_SECRET: ${INSTAMIND_META_FACEBOOK_CLIENT_SECRET:-}
+  INSTAMIND_META_WEBHOOK_VERIFY_TOKEN: ${INSTAMIND_META_WEBHOOK_VERIFY_TOKEN:-}
   INSTAMIND_META_REDIRECT_URI_INSTAGRAM: ${PUBLIC_URL:-http://localhost}/api/v1/social-accounts/oauth/instagram/callback
   INSTAMIND_META_REDIRECT_URI_FACEBOOK: ${PUBLIC_URL:-http://localhost}/api/v1/social-accounts/oauth/facebook/callback
   INSTAMIND_PUBLIC_MEDIA_BASE_URL: ${PUBLIC_URL:-http://localhost}/media
-  INSTAMIND_AI_PROVIDER: ${AI_PROVIDER:-null}
-  INSTAMIND_OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-  INSTAMIND_CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
+  INSTAMIND_AI_PROVIDER: ${INSTAMIND_AI_PROVIDER:-null}
+  INSTAMIND_OPENAI_API_KEY: ${INSTAMIND_OPENAI_API_KEY:-}
+  INSTAMIND_CORS_ORIGINS: ${INSTAMIND_CORS_ORIGINS:-http://localhost:3000}
 
 services:
   postgres:
@@ -71,7 +71,7 @@ services:
       retries: 10
 
   minio:
-    image: minio/minio:latest
+    image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
     restart: unless-stopped
     command: server /data --console-address ":9001"
     environment:
@@ -83,14 +83,14 @@ services:
       - "127.0.0.1:9000:9000"
       - "127.0.0.1:9001:9001"
     healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
+      test: ["CMD", "curl", "--fail", "http://127.0.0.1:9000/minio/health/live"]
       interval: 10s
       timeout: 5s
       retries: 10
 
   # Creates the bucket once, then exits.
   minio-init:
-    image: minio/mc:latest
+    image: quay.io/minio/mc:RELEASE.2025-08-13T08-35-41Z
     depends_on:
       minio:
         condition: service_healthy
@@ -154,7 +154,9 @@ services:
       context: ./apps/frontend
     restart: unless-stopped
     environment:
-      NEXT_PUBLIC_API_BASE_URL: /api/v1
+      # The browser talks only to this origin; Next rewrites /api/* to the
+      # backend server-side (no CORS, no localhost from the browser).
+      BACKEND_ORIGIN: http://backend:8000
     depends_on:
       - backend
     ports:

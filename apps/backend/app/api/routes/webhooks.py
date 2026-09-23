@@ -41,6 +41,12 @@ async def receive_event(
     service = WebhookService(session)
     results = await service.ingest(payload_bytes=body, signature_header=x_hub_signature_256)
 
+    from app.worker.tasks import process_webhook_event
+
+    for item in results:
+        if item.accepted and item.event_id:
+            process_webhook_event.delay(item.event_id)
+
     accepted = sum(1 for item in results if item.accepted)
     duplicates = sum(1 for item in results if item.duplicate)
     rejected = len(results) - accepted - duplicates
