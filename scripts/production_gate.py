@@ -12,7 +12,6 @@ not external connectivity or Meta App Review state.
 from __future__ import annotations
 
 import os
-import sys
 from urllib.parse import urlparse
 
 
