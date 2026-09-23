@@ -8,6 +8,7 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  issues: write
 
 jobs:
   backend:
@@ -72,12 +73,8 @@ jobs:
           code=$?
           echo "$output"
           if [ "$code" -ne 0 ]; then
-            printf '%s\n' "$output" > CI_PYTEST_DIAGNOSTIC.txt
-            git config user.name 'github-actions[bot]'
-            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-            git add CI_PYTEST_DIAGNOSTIC.txt
-            git commit -m 'ci: pytest diagnostic [skip ci]'
-            git push
+            body=$(python -c 'import json,os,sys; print(json.dumps({"title":"CI diagnostic: pytest failure","body":"Temporary diagnostic for run "+os.environ["GITHUB_RUN_ID"]+"\\n\\n```text\\n"+sys.stdin.read()+"\\n```"}))' <<< "$output")
+            curl -fsSL -X POST -H "Authorization: Bearer $GITHUB_TOKEN" -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28" https://api.github.com/repos/$GITHUB_REPOSITORY/issues -d "$body"
           fi
           exit "$code"
 
