@@ -38,64 +38,22 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e ".[dev]"
 
-      - name: Ruff — main.py
-        continue-on-error: true
-        run: ruff check app/main.py
-
-      - name: Ruff — engagement.py
-        continue-on-error: true
-        run: ruff check app/api/routes/engagement.py
-
-      - name: Ruff — worker/tasks.py
-        continue-on-error: true
-        run: ruff check app/worker/tasks.py
-
-      - name: Ruff — schemas.py
-        continue-on-error: true
-        run: ruff check app/api/schemas.py
-
-      - name: Ruff — webhooks.py
-        continue-on-error: true
-        run: ruff check app/api/routes/webhooks.py
-
-      - name: Ruff — engagement route test
-        continue-on-error: true
-        run: ruff check tests/test_engagement_routes.py
-
-      - name: Ruff — app/core
-        continue-on-error: true
+      - name: Lint — app/core
         run: ruff check app/core
-
-      - name: Ruff — app/db
-        continue-on-error: true
+      - name: Lint — app/db
         run: ruff check app/db
-
-      - name: Ruff — app/api
-        continue-on-error: true
+      - name: Lint — app/api
         run: ruff check app/api
-
-      - name: Ruff — app/modules
-        continue-on-error: true
+      - name: Lint — app/modules
         run: ruff check app/modules
-
-      - name: Ruff — app/providers
-        continue-on-error: true
+      - name: Lint — app/providers
         run: ruff check app/providers
-
-      - name: Ruff — app/worker
-        continue-on-error: true
+      - name: Lint — app/worker
         run: ruff check app/worker
-
-      - name: Ruff — tests
-        continue-on-error: true
+      - name: Lint — app root
+        run: ruff check app/__init__.py app/main.py app/middleware.py
+      - name: Lint — tests
         run: ruff check tests
-
-      - name: Ruff — app root
-        continue-on-error: true
-        run: ruff check app/__init__.py app/middleware.py
-
-      - name: Lint (ruff)
-        run: ruff check app tests
 
       - name: Types (mypy)
         run: mypy app || true   # advisory until the baseline is clean
