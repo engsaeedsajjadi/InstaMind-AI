@@ -90,6 +90,10 @@ jobs:
         continue-on-error: true
         run: ruff check tests
 
+      - name: Ruff — app root
+        continue-on-error: true
+        run: ruff check app/__init__.py app/middleware.py
+
       - name: Lint (ruff)
         run: ruff check app tests
 
