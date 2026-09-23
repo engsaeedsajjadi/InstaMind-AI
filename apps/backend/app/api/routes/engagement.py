@@ -26,7 +26,7 @@ from app.api.schemas import (
     MessageRead,
     MessageSendRequest,
 )
-from app.core.exceptions import NotFoundError, ValidationError
+from app.core.exceptions import ValidationError
 from app.core.permissions import Permission
 from app.modules.inbox.models import (
     AnalyticsSnapshot,
