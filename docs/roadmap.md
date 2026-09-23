@@ -55,16 +55,19 @@ is no service or endpoint yet. **Not started** means nothing but a plan.
 * Email delivery (verification, reset, invitations) via SMTP.
 * TOTP MFA enforcement.
 
-## M3 — Engagement
+## M3 — Engagement — partial implementation
 
-* Inbox: conversation/message sync from webhooks + polling, assignment, labels,
-  notes, human reply with `HUMAN_AGENT` only for humans.
-* AI reply **suggestions** (never auto-send by default), grounded in product
-  data.
-* Comments: sync, reply, hide, spam flagging, escalation.
-* CRM: customer creation from conversations, tags, notes, lead scoring from real
-  signals, CSV export.
-* Notifications service (in-app, email, SMS provider).
+Implemented on the current completion branch:
+* Inbox conversation/message sync, 24-hour messaging-window enforcement, human-agent tagging.
+* Comments sync, reply, private reply and hide.
+* CRM customer listing/update and customer notes.
+* Analytics Insights snapshot sync and read APIs.
+* Webhook ingestion for engagement events.
+
+Still required before calling this milestone complete:
+* AI reply suggestions with approval gate.
+* Assignment/labels UI and richer CRM workflows.
+* CSV/PDF exports and notifications.
 
 ## M4 — Agents & analytics
 
