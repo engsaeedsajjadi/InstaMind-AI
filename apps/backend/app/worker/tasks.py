@@ -187,6 +187,7 @@ def process_webhook_event(event_id: str) -> dict:  # noqa: ANN001
     """Turn a stored webhook event into domain changes (inbox, comments)."""
 
     async def _work(session) -> dict:
+        from app.modules.inbox.models import Comment, Conversation, Message
         from app.modules.instagram.models import MetaWebhookEvent
 
         event = await session.get(MetaWebhookEvent, uuid.UUID(event_id))
