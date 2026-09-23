@@ -54,6 +54,14 @@ jobs:
         continue-on-error: true
         run: ruff check app/api/schemas.py
 
+      - name: Ruff — webhooks.py
+        continue-on-error: true
+        run: ruff check app/api/routes/webhooks.py
+
+      - name: Ruff — engagement route test
+        continue-on-error: true
+        run: ruff check tests/test_engagement_routes.py
+
       - name: Lint (ruff)
         run: ruff check app tests
 
