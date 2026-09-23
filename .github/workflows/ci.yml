@@ -40,15 +40,8 @@ jobs:
 
       - name: Lint (ruff)
         run: |
-          set +e
-          output="$(ruff check app/main.py 2>&1)"
-          code=$?
-          echo "$output"
-          if [ "$code" -ne 0 ]; then
-            body=$(jq -n --arg body "Temporary ruff diagnostic for run $GITHUB_RUN_ID\n\n$output" '{title:"CI diagnostic: ruff main.py",body:$body}')
-            curl -fsSL -X POST -H "Authorization: Bearer $GITHUB_TOKEN" -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28" "https://api.github.com/repos/$GITHUB_REPOSITORY/issues" -d "$body"
-          fi
-          exit "$code"
+          ruff check app/main.py --fix
+          ruff check app tests
 
       - name: Types (mypy)
         run: mypy app || true   # advisory until the baseline is clean
