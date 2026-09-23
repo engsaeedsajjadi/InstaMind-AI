@@ -25,7 +25,7 @@ from app.api.schemas import (
     UserRead,
 )
 from app.core.config import settings
-from app.core.exceptions import NotFoundError
+from app.core.exceptions import AuthenticationError, NotFoundError
 from app.core.rate_limit import enforce_rate_limit
 from app.modules.identity.models import User
 from app.modules.identity.service import IdentityService
