@@ -25,7 +25,7 @@ import type {
 } from "./types";
 
 const BASE = "/api/v1";
-const AUTH_KEY = "instamind.auth";
+const AUTH_KEY = "instamind.authenticated";
 const WS_KEY = "instamind.workspace_id";
 
 export class ApiError extends Error {
@@ -42,27 +42,17 @@ export class ApiError extends Error {
 }
 
 export interface StoredAuth {
-  accessToken: string;
-  refreshToken: string;
+  authenticated: true;
 }
 
 export function getAuth(): StoredAuth | null {
   if (typeof window === "undefined") return null;
-  const raw = window.localStorage.getItem(AUTH_KEY);
-  if (!raw) return null;
-  try {
-    return JSON.parse(raw) as StoredAuth;
-  } catch {
-    return null;
-  }
+  return window.sessionStorage.getItem(AUTH_KEY) === "1" ? { authenticated: true } : null;
 }
 
 function setAuth(auth: StoredAuth | null): void {
-  if (auth === null) {
-    window.localStorage.removeItem(AUTH_KEY);
-  } else {
-    window.localStorage.setItem(AUTH_KEY, JSON.stringify(auth));
-  }
+  if (auth === null) window.sessionStorage.removeItem(AUTH_KEY);
+  else window.sessionStorage.setItem(AUTH_KEY, "1");
 }
 
 export function isAuthenticated(): boolean {
@@ -95,12 +85,10 @@ async function parseProblem(response: Response): Promise<ApiError> {
 
 /** Try once to rotate the refresh token. Returns false when the session is dead. */
 async function tryRefresh(): Promise<boolean> {
-  const auth = getAuth();
-  if (!auth?.refreshToken) return false;
-  const response = await fetch(`${BASE}/auth/refresh`, {
+  if (!getAuth()) return false;
+  const response = await fetch(`${BASE}/auth/browser/refresh`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ refresh_token: auth.refreshToken }),
+    credentials: "include",
     cache: "no-store",
   });
   if (!response.ok) {
@@ -110,10 +98,7 @@ async function tryRefresh(): Promise<boolean> {
   const tokens = (await response.json()) as TokenResponse;
   // Inside the rotation grace window the backend reissues ONLY an access
   // token (empty string) — keep the replacement refresh token we already hold.
-  setAuth({
-    accessToken: tokens.access_token,
-    refreshToken: tokens.refresh_token || auth.refreshToken,
-  });
+  setAuth({ authenticated: true });
   return true;
 }
 
@@ -127,12 +112,11 @@ async function request<T>(
   if (!headers.has("Content-Type") && init.body) {
     headers.set("Content-Type", "application/json");
   }
-  const auth = getAuth();
-  if (auth) headers.set("Authorization", `Bearer ${auth.accessToken}`);
+  // Browser auth is carried by HttpOnly cookies; never put JWTs in JS-accessible storage.
   const workspaceId = getWorkspaceId();
   if (workspaceId) headers.set("X-Workspace-Id", workspaceId);
 
-  const response = await fetch(`${BASE}${path}`, { ...init, headers, cache: "no-store" });
+  const response = await fetch(`${BASE}${path}`, { ...init, headers, credentials: "include", cache: "no-store" });
   if (response.status === 401 && retry && (await tryRefresh())) {
     return request<T>(path, init, { retry: false });
   }
@@ -150,11 +134,11 @@ async function request<T>(
 // --------------------------------------------------------------------------- //
 
 export async function login(email: string, password: string): Promise<void> {
-  const tokens = await request<TokenResponse>("/auth/login", {
+  await request<UserRead>("/auth/browser/login", {
     method: "POST",
     body: JSON.stringify({ email, password, device_label: "web" }),
   });
-  setAuth({ accessToken: tokens.access_token, refreshToken: tokens.refresh_token });
+  setAuth({ authenticated: true });
 }
 
 export async function register(email: string, password: string, fullName: string): Promise<void> {
@@ -167,7 +151,7 @@ export async function register(email: string, password: string, fullName: string
 
 export async function logout(): Promise<void> {
   try {
-    await request<void>("/auth/logout", { method: "POST" });
+    await request<void>("/auth/browser/logout", { method: "POST" });
   } finally {
     signOut();
   }
