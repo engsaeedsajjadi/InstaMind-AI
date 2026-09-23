@@ -16,6 +16,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api.routes import (
     ai,
+    engagement,
     auth,
     billing,
     content,
@@ -84,7 +85,7 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title=settings.APP_NAME,
         description=DESCRIPTION,
-        version="0.1.0",
+        version="0.2.0",
         lifespan=lifespan,
         docs_url="/docs" if not settings.is_prod else None,
         redoc_url="/redoc" if not settings.is_prod else None,
@@ -129,6 +130,7 @@ def create_app() -> FastAPI:
     app.include_router(content.router, prefix=prefix)
     app.include_router(publishing.router, prefix=prefix)
     app.include_router(ai.router, prefix=prefix)
+    app.include_router(engagement.router, prefix=prefix)
     app.include_router(billing.router, prefix=prefix)
     # Webhooks are mounted under the version prefix but are unauthenticated by
     # design — Meta signs them instead.

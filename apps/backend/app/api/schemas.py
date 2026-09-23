@@ -397,6 +397,120 @@ class ContentPlanResponse(BaseModel):
     warnings: list[str] = Field(default_factory=list)
 
 
+
+# --------------------------------------------------------------------------- #
+# Engagement / CRM / Analytics
+# --------------------------------------------------------------------------- #
+class ConversationRead(ORMModel):
+    id: uuid.UUID
+    workspace_id: uuid.UUID
+    social_account_id: uuid.UUID
+    external_conversation_id: str
+    participant_ig_id: str | None
+    participant_username: str | None
+    participant_name: str | None
+    status: str
+    is_read: bool
+    assigned_to: uuid.UUID | None
+    labels: list[Any]
+    last_message_at: datetime | None
+    last_inbound_at: datetime | None
+    messaging_window_expires_at: datetime | None
+    human_agent_until: datetime | None
+    customer_id: uuid.UUID | None
+    ai_intent: str | None
+    ai_lead_score: int | None
+    needs_human: bool
+    automation_enabled: bool
+
+class MessageRead(ORMModel):
+    id: uuid.UUID
+    workspace_id: uuid.UUID
+    conversation_id: uuid.UUID
+    external_message_id: str
+    direction: str
+    sender_kind: str
+    message_type: str
+    text: str
+    media_url: str | None
+    attachments: list[Any]
+    is_internal_note: bool
+    sent_by: uuid.UUID | None
+    message_tag: str | None
+    status: str
+    error: str | None
+    sent_at: datetime | None
+
+class SendMessageRequest(BaseModel):
+    text: str = Field(min_length=1, max_length=1000)
+    use_human_agent_tag: bool = False
+
+class CommentRead(ORMModel):
+    id: uuid.UUID
+    workspace_id: uuid.UUID
+    social_account_id: uuid.UUID
+    media_id: str | None
+    external_comment_id: str
+    parent_comment_id: str | None
+    from_username: str | None
+    from_ig_id: str | None
+    text: str
+    like_count: int
+    status: str
+    is_hidden: bool
+    spam_score: float
+    ai_intent: str | None
+    needs_human: bool
+    replied_at: datetime | None
+    replied_by: uuid.UUID | None
+    labels: list[Any]
+    posted_at: datetime | None
+
+class CommentReplyRequest(BaseModel):
+    text: str = Field(min_length=1, max_length=2200)
+
+class CustomerRead(ORMModel):
+    id: uuid.UUID
+    workspace_id: uuid.UUID
+    external_id: str
+    source: str
+    username: str | None
+    display_name: str | None
+    phone: str | None
+    email: str | None
+    tags: list[Any]
+    lead_score: int
+    stage: str
+    owner_id: uuid.UUID | None
+    first_seen_at: datetime | None
+    last_interaction_at: datetime | None
+    attributes: dict[str, Any]
+
+class CustomerUpdate(BaseModel):
+    display_name: str | None = Field(default=None, max_length=160)
+    phone: str | None = Field(default=None, max_length=32)
+    email: EmailStr | None = None
+    tags: list[str] | None = None
+    lead_score: int | None = Field(default=None, ge=0, le=100)
+    stage: Literal["NEW", "QUALIFIED", "PROPOSAL", "NEGOTIATION", "WON", "LOST"] | None = None
+    owner_id: uuid.UUID | None = None
+    attributes: dict[str, Any] | None = None
+
+class AnalyticsRead(ORMModel):
+    id: uuid.UUID
+    workspace_id: uuid.UUID
+    social_account_id: uuid.UUID
+    media_id: str | None
+    metric: str
+    period: str
+    since: datetime
+    until: datetime
+    value: float | None
+    breakdown: dict[str, Any]
+    is_available: bool
+    source: str
+    fetched_at: datetime
+
 # --------------------------------------------------------------------------- #
 # Webhooks
 # --------------------------------------------------------------------------- #

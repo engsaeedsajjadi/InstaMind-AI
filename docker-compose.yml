@@ -1,4 +1,4 @@
-# InstaMind AI — local development stack.
+﻿# InstaMind AI — local development stack.
 #
 #   cp .env.example .env && docker compose up --build
 #
@@ -63,7 +63,7 @@ services:
     volumes:
       - redis_data:/data
     ports:
-      - "127.0.0.1:6379:6379"
+      - "127.0.0.1:6381:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -71,7 +71,7 @@ services:
       retries: 10
 
   minio:
-    image: minio/minio:latest
+    image: quay.io/minio/minio:latest
     restart: unless-stopped
     command: server /data --console-address ":9001"
     environment:
@@ -90,7 +90,7 @@ services:
 
   # Creates the bucket once, then exits.
   minio-init:
-    image: minio/mc:latest
+    image: quay.io/minio/mc:latest
     depends_on:
       minio:
         condition: service_healthy
@@ -135,6 +135,8 @@ services:
       backend:
         condition: service_started
     command: celery -A app.worker.celery_app worker -Q publishing,default -l info --concurrency=4
+    healthcheck:
+      disable: true
     volumes:
       - ./apps/backend:/srv/app
 
@@ -148,6 +150,8 @@ services:
       backend:
         condition: service_started
     command: celery -A app.worker.celery_app beat -l info
+    healthcheck:
+      disable: true
 
   frontend:
     build:
@@ -167,7 +171,7 @@ services:
       - backend
       - frontend
     ports:
-      - "80:80"
+      - "127.0.0.1:8080:80"
     volumes:
       - ./infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
 
@@ -194,3 +198,7 @@ volumes:
   redis_data:
   minio_data:
   media_storage:
+
+
+
+
