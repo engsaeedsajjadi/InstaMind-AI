@@ -62,6 +62,34 @@ jobs:
         continue-on-error: true
         run: ruff check tests/test_engagement_routes.py
 
+      - name: Ruff — app/core
+        continue-on-error: true
+        run: ruff check app/core
+
+      - name: Ruff — app/db
+        continue-on-error: true
+        run: ruff check app/db
+
+      - name: Ruff — app/api
+        continue-on-error: true
+        run: ruff check app/api
+
+      - name: Ruff — app/modules
+        continue-on-error: true
+        run: ruff check app/modules
+
+      - name: Ruff — app/providers
+        continue-on-error: true
+        run: ruff check app/providers
+
+      - name: Ruff — app/worker
+        continue-on-error: true
+        run: ruff check app/worker
+
+      - name: Ruff — tests
+        continue-on-error: true
+        run: ruff check tests
+
       - name: Lint (ruff)
         run: ruff check app tests
 
