@@ -15,6 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api.routes import (
+    agents,
     ai,
     auth,
     billing,
@@ -129,6 +130,7 @@ def create_app() -> FastAPI:
     app.include_router(content.router, prefix=prefix)
     app.include_router(publishing.router, prefix=prefix)
     app.include_router(ai.router, prefix=prefix)
+    app.include_router(agents.router, prefix=prefix)
     app.include_router(billing.router, prefix=prefix)
     # Webhooks are mounted under the version prefix but are unauthenticated by
     # design — Meta signs them instead.

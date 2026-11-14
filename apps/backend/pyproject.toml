@@ -29,6 +29,8 @@ dependencies = [
     "cryptography>=44.0",
     # --- Outbound HTTP (Meta Graph, payment gateways, AI) ---
     "httpx>=0.28",
+    # --- Media rendering (Designer agent: covers, scene frames, quality gate)
+    "pillow>=10.0",
     # --- Observability ---
     "structlog>=24.4",
 ]

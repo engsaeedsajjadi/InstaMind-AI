@@ -35,6 +35,9 @@ celery_app.conf.update(
     task_default_queue="default",
     task_routes={
         "instamind.publishing.*": {"queue": "publishing"},
+        "instamind.agents.process_run": {"queue": "publishing"},
+        "instamind.agents.process_due_runs": {"queue": "publishing"},
+        "instamind.agents.analyse_published_runs": {"queue": "default"},
         "instamind.webhooks.*": {"queue": "default"},
     },
     # A publish must not run forever; Meta's own timeouts are much shorter.
@@ -45,6 +48,14 @@ celery_app.conf.update(
         "publish-due-jobs": {
             "task": "instamind.publishing.process_due_jobs",
             "schedule": 60.0,
+        },
+        "process-due-agent-runs": {
+            "task": "instamind.agents.process_due_runs",
+            "schedule": 60.0,
+        },
+        "analyse-published-agent-runs": {
+            "task": "instamind.agents.analyse_published_runs",
+            "schedule": crontab(hour=4, minute=30),
         },
         "refresh-meta-tokens": {
             "task": "instamind.instagram.refresh_tokens",
