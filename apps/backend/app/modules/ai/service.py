@@ -23,7 +23,7 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.exceptions import QuotaExceeded, ValidationError
+from app.core.exceptions import QuotaExceeded, ServiceUnavailable, ValidationError
 from app.core.logging import logger
 from app.modules.audit.service import AuditService
 from app.modules.content.models import AIGeneration, BrandProfile, Content
@@ -76,6 +76,20 @@ class PlanResult:
     warnings: list[str] = field(default_factory=list)
 
 
+@dataclass(frozen=True)
+class ReelScript:
+    generation_id: uuid.UUID
+    hook: str
+    scenes: list[dict]
+    cover_title: str
+    caption: str
+    hashtags: list[str]
+    model: str
+    cost_cents: int
+    status: str = "SUCCEEDED"
+    warnings: list[str] = field(default_factory=list)
+
+
 SYSTEM_PROMPT_BASE = """You are InstaMind AI, a social-media content assistant for businesses.
 
 Non-negotiable rules:
@@ -86,6 +100,17 @@ Non-negotiable rules:
 - Do not add emojis unless the brand tone explicitly asks for them.
 - Never claim the content is human-written or that the brand said something it did not.
 - Keep captions within Instagram's 2200-character limit and at most 30 hashtags.
+"""
+
+REEL_SCRIPT_SYSTEM_PROMPT = """You are InstaMind AI, writing a short Instagram reel script in Persian.
+
+Non-negotiable rules:
+- Only use facts from the BRAND FACTS block. Never invent prices, stock, delivery times, certifications or reviews.
+- Write everything in Persian. Transliterate any Latin word into Persian script (API -> ای‌پی‌آی, CRM -> سی‌آر‌ام); never leave Latin letters in the text — the renderer font has no Latin glyphs.
+- The hook is the first thing the viewer reads: one short sentence (5-140 chars) that states the problem or the promise. The first scene's text MUST be the hook.
+- Scenes: 3 to 5, each 2-3 seconds, each one short line of on-screen text.
+- Cover title: 2 short lines, bold, the promise of the reel.
+- Caption: at most 2200 characters. Hashtags: at most 10.
 """
 
 PLAN_SYSTEM_PROMPT = """You are InstaMind AI, planning an Instagram content calendar for a business.
@@ -235,6 +260,7 @@ class AIContentService:
         include_cta: bool = True,
         product_names: list[str] | None = None,
         content_id: uuid.UUID | None = None,
+        extra_instructions: str | None = None,
     ) -> CaptionResult:
         await self._enforce_budget()
         facts, profile = await self._brand_facts(brand_profile_id)
@@ -255,6 +281,11 @@ class AIContentService:
                 'Respond with JSON only: {"caption": "...", "hashtags": ["..."], "cta": "..." }',
             ]
         )
+        if extra_instructions:
+            # Harness state, not a prompt edit: an instruction addendum from
+            # the active HarnessConfig, appended per-run to the *user*
+            # prompt. SYSTEM_PROMPT_BASE is never mutated.
+            user_prompt += f"\nAdditional harness instructions:\n{extra_instructions}"
         completion = await self.provider.complete(
             [
                 AIMessage(role="system", content=SYSTEM_PROMPT_BASE),
@@ -338,6 +369,161 @@ class AIContentService:
             cta=cta,
             model=completion.model,
             cost_cents=completion.usage.cost_cents,
+            warnings=warnings,
+        )
+
+    # ---------------------------------------------------------- reel script
+    async def generate_reel_script(
+        self,
+        *,
+        topic: str,
+        language: str = "fa-IR",
+        brand_profile_id: uuid.UUID | None = None,
+        content_id: uuid.UUID | None = None,
+        extra_instructions: str | None = None,
+    ) -> ReelScript:
+        """Writer agent's structured output: hook, timed scenes, cover title,
+        caption and hashtags — all Persian, all from brand facts only.
+
+        Same budget/audit/record contract as ``generate_caption``. The first
+        scene's text is forced to equal the hook so the hook lands in the
+        first 3 seconds; a provider that returns anything else is repaired
+        here, not silently passed on.
+        """
+        await self._enforce_budget()
+        facts, profile = await self._brand_facts(brand_profile_id)
+        started = time.perf_counter()
+
+        user_prompt = "\n".join(
+            [
+                f"Task: write a short Instagram reel script about: {topic}",
+                f"Output language: {language}",
+                "",
+                "BRAND FACTS:",
+                facts,
+                "",
+                'Respond with JSON only: {"hook": "...", "scenes": '
+                '[{"text": "...", "start_s": 0, "end_s": 3}], "cover_title": "...", '
+                '"caption": "...", "hashtags": ["..."]}',
+            ]
+        )
+        if extra_instructions:
+            # Harness state, not a prompt edit: see generate_caption.
+            user_prompt += f"\nAdditional harness instructions:\n{extra_instructions}"
+        completion = None
+        hook = ""
+        scenes: list[dict] = []
+        cover_title = ""
+        caption = ""
+        hashtags: list[str] = []
+        status = "SUCCEEDED"
+        error: str | None = None
+        try:
+            completion = await self.provider.complete(
+                [
+                    AIMessage(role="system", content=REEL_SCRIPT_SYSTEM_PROMPT),
+                    AIMessage(role="user", content=user_prompt),
+                ],
+                temperature=0.7,
+                max_tokens=1500,
+                response_format="json",
+            )
+            parsed = parse_json_object(completion.text)
+            hook = str(parsed.get("hook") or "").strip()
+            raw_scenes = parsed.get("scenes") or []
+            for raw in raw_scenes:
+                if not isinstance(raw, dict):
+                    continue
+                text = str(raw.get("text") or "").strip()
+                if not text:
+                    continue
+                scenes.append(
+                    {
+                        "text": text,
+                        "start_s": float(raw.get("start_s") or 0),
+                        "end_s": float(raw.get("end_s") or 0),
+                    }
+                )
+            cover_title = str(parsed.get("cover_title") or "").strip()
+            caption = str(parsed.get("caption") or "").strip()
+            hashtags = [str(tag) for tag in (parsed.get("hashtags") or [])][:10]
+            if not scenes:
+                raise ValueError("Provider returned no usable scenes.")
+            # The hook must be the first thing on screen.
+            if scenes[0]["text"] != hook:
+                scenes.insert(0, {"text": hook, "start_s": 0.0, "end_s": 3.0})
+            scenes = scenes[:5]
+            # Normalise scene timing: 2-3 s per scene, contiguous.
+            cursor = 0.0
+            for scene in scenes:
+                scene["start_s"] = round(cursor, 1)
+                scene["end_s"] = round(cursor + 2.5, 1)
+                cursor = scene["end_s"]
+            if not hook:
+                hook = scenes[0]["text"]
+        except Exception as exc:  # noqa: BLE001 - recorded, then re-raised
+            hook, scenes, cover_title, caption, hashtags = "", [], "", "", []
+            status = "FAILED"
+            error = str(exc)[:500]
+
+        warnings = self._guard_output(caption or hook, profile)
+        if len(hashtags) > 10:
+            warnings.append("Too many hashtags")
+            hashtags = hashtags[:10]
+
+        latency_ms = int((time.perf_counter() - started) * 1000)
+        usage = completion.usage if completion is not None else None
+        generation = AIGeneration(
+            workspace_id=self.scope.workspace_id,
+            kind="reel_script",
+            provider=getattr(self.provider, "name", "unknown"),
+            model=completion.model if completion is not None else "unknown",
+            prompt_tokens=usage.prompt_tokens if usage else 0,
+            completion_tokens=usage.completion_tokens if usage else 0,
+            total_tokens=usage.total_tokens if usage else 0,
+            cost_cents=usage.cost_cents if usage else 0,
+            input_payload={"topic": topic, "language": language},
+            output_text=caption,
+            output_payload={"hook": hook, "scenes": scenes, "cover_title": cover_title},
+            status=status,
+            moderation_flags=warnings,
+            latency_ms=latency_ms,
+            content_id=content_id,
+            brand_profile_id=brand_profile_id,
+            error=error,
+            created_by=self.scope.context.user_id,
+        )
+        self.session.add(generation)
+        await self.session.flush()
+        await self._record_usage(usage.cost_cents if usage else 0)
+
+        if status != "SUCCEEDED":
+            raise ServiceUnavailable(
+                f"Reel script generation failed: {error or 'provider returned unusable output'}.",
+                context={"generation_id": str(generation.id)},
+            )
+
+        await self.audit.record(
+            action="ai.reel_script_generated",
+            workspace_id=self.scope.workspace_id,
+            actor_id=self.scope.context.user_id,
+            resource_type="ai_generation",
+            resource_id=str(generation.id),
+            metadata={
+                "cost_cents": usage.cost_cents if usage else 0,
+                "model": completion.model if completion is not None else "unknown",
+                "warnings": len(warnings),
+            },
+        )
+        return ReelScript(
+            generation_id=generation.id,
+            hook=hook,
+            scenes=scenes,
+            cover_title=cover_title,
+            caption=caption,
+            hashtags=hashtags,
+            model=completion.model if completion is not None else "unknown",
+            cost_cents=usage.cost_cents if usage else 0,
             warnings=warnings,
         )
 

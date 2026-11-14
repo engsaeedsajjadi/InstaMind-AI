@@ -82,17 +82,21 @@ returned.
 ### Usage
 `GET /api/v1/ai/usage` → `{ai_cost_cents_month, budget_cents}`.
 
-## 6. Agent orchestration (M4 — designed, not built)
+## 6. Agent orchestration (M4 — built on branch `feat/agentic-content-pipeline`)
 
-The tables exist (`agent_runs`, `ai_tasks`, `agent_tool_calls`); the runtime
-does not yet. The design that will be implemented:
+The tables exist (`agent_runs`, `ai_tasks`, `agent_tool_calls`) and the
+runtime is now implemented in `app/modules/agents/` — see
+`docs/agentic-pipeline.md` for the full design. The implemented flow is:
 
 ```
 user instruction
   → Planner      analyse goal, read brand profile, produce a plan
-  → Executor     create ai_tasks, run them in order
-  → QC           run the guardrails, flag issues
+  → Writer       Persian hook / scenes / cover title / caption (generate_reel_script)
+  → Designer     render cover + scene frames + reel (PIL + libraqm, ffmpeg)
+  → QC           automated quality gate on the real media; rework or dead-letter
   → Approval     AWAITING_APPROVAL until a human confirms
+  → Publisher    official Meta API publish + live verification
+  → Analyst      Insights → AnalyticsSnapshot (NULL when Meta returns nothing)
   → Result       record outcome and spend
 ```
 

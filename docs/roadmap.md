@@ -68,7 +68,10 @@ is no service or endpoint yet. **Not started** means nothing but a plan.
 
 ## M4 — Agents & analytics
 
-* Agent orchestrator: planner, executor, QC, approval gate.
+* Agent orchestrator: planner, writer, designer, quality gate, approval
+  gate, publisher, analyst — implemented on branch
+  `feat/agentic-content-pipeline` (see `docs/agentic-pipeline.md`).
+  Carousel rendering is not implemented yet.
 * Tool registry with the permission map in `docs/ai-agents.md`.
 * Analytics: insights sync, per-content performance, campaign comparison,
   CSV/PDF export. Only metrics Meta returns; `is_available=false` renders as

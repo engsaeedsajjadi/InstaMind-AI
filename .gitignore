@@ -32,6 +32,9 @@ out/
 
 # ------------------------------------------------------------------ runtime
 storage/
+# ...but NOT the storage module: it is source code, and this pattern is why
+# the M1 commit silently lost app/modules/storage/ (see docs/agentic-pipeline.md).
+!apps/backend/app/modules/storage/
 *.log
 logs/
 celerybeat-schedule*
